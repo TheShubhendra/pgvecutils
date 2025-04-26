@@ -7,37 +7,39 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-        ports: ["5432:5432"]
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-server-dev-16 make gcc clang-19 llvm-19
+    - name: Install PostgreSQL 16 and dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget gnupg lsb-release
+        echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+        wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+        sudo apt-get update
+        sudo apt-get install -y postgresql-16 postgresql-server-dev-16
 
-      - name: Build extension
-        run: |
-          make
-          sudo make install
+    - name: Install pgvector extension
+      run: |
+        git clone https://github.com/pgvector/pgvector.git
+        cd pgvector
+        make
+        sudo make install
 
-      - name: Run tests
-        run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE EXTENSION pgvecutils; SELECT vector_rand(5);"
+    - name: Build and Install pgvecutils
+      run: |
+        make
+        sudo make install
+
+    - name: Start PostgreSQL
+      run: |
+        sudo systemctl start postgresql
+        sudo systemctl status postgresql
+
+    - name: Setup pgvector and pgvecutils
+      run: |
+        sudo -u postgres psql -c "CREATE EXTENSION vector;"
+        sudo -u postgres psql -c "CREATE EXTENSION pgvecutils;"
+        sudo -u postgres psql -c "SELECT vector_rand(5);"
