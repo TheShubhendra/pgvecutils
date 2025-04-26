@@ -1,0 +1,44 @@
+name: Test pgvecutils
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        ports: ["5432:5432"]
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-server-dev-16 make gcc
+
+      - name: Build extension
+        run: |
+          make
+          sudo make install
+
+      - name: Run tests
+        run: |
+          psql -h localhost -U postgres -d postgres -c "CREATE EXTENSION pgvecutils;"
+          psql -h localhost -U postgres -d postgres -c "SELECT vector_rand(5);"
