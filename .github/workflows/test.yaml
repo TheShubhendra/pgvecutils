@@ -40,5 +40,4 @@ jobs:
 
       - name: Run tests
         run: |
-          psql -h localhost -U postgres -d postgres -c "CREATE EXTENSION pgvecutils;"
-          psql -h localhost -U postgres -d postgres -c "SELECT vector_rand(5);"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE EXTENSION pgvecutils; SELECT vector_rand(5);"
